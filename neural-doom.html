@@ -261,11 +261,11 @@ hr.dv { border: none; border-top: 1px solid #cc1a1a1a; }
 // NN ARCHITECTURE — change these to reconfigure
 // ══════════════════════════════════════════════
 const INPUT_SIZE = 10;   // inputs
-const HIDDEN_LAYER_1_SIZE = 24;
+const HIDDEN_LAYER_1_SIZE = 64;
 const HIDDEN_LAYER_2_SIZE = 16;
 const OUTPUT_SIZE = 7;
 const LEARNING_RATE = 0.012;
-const TRAINING_STEPS_PER_FRAME = 3;
+const TRAINING_STEPS_PER_FRAME = 1;
 const OUTPUT_LABELS = ['ROT←','ROT→','FWD','BACK','STR←','STR→','FIRE'];
 const INPUT_LABELS  = ['dx','dy','dist','sinA','cosA','LOS','rx','ry','rd','ehp'];
 
@@ -348,7 +348,7 @@ const triggerGameOver = () => {
 // ══════════════════════════════════════════════
 // COLLISION
 // ══════════════════════════════════════════════
-const R = 0.35;
+const R = 0.25;
 const collidesAt = (x, y) =>
   mapAt(x-R,y-R)||mapAt(x+R,y-R)||mapAt(x-R,y+R)||mapAt(x+R,y+R)||
   mapAt(x,y-R)  ||mapAt(x,y+R)  ||mapAt(x-R,y)  ||mapAt(x+R,y);
@@ -360,12 +360,13 @@ const projs = [];
 const exps  = [];
 let kills = 0;
 
+const RKT_COOLDOWN = 60;
 function spawnRocket() {
   projs.push({
     x: pl.x+Math.cos(pl.a)*0.55, y: pl.y+Math.sin(pl.a)*0.55,
     a: pl.a, spd: 0.1, type:'rocket', alive:true, life:0, maxLife:130
   });
-  pl.rcd = 100;
+  pl.rcd = RKT_COOLDOWN;
 }
 
 function spawnFireball() {
@@ -406,7 +407,7 @@ function updateProjectiles() {
     if (p.type==='fireball' && pl.invincible<=0) {
       if (Math.hypot(p.x-pl.x, p.y-pl.y) < 0.6) {
         p.alive=false;
-        pl.hp = Math.max(0, pl.hp-25);
+        pl.hp = Math.max(0, pl.hp-15);
         pl.invincible = 65;
         dmgFlashT = 12;
         exps.push({x:p.x, y:p.y, t:10, maxT:10, type:'fire'});
@@ -753,7 +754,7 @@ function nnBackward(inp, tgt) {
 }
 
 function adamStep(parameter, gradient, momentum, velocity) {
-  const beta1 = 0.85, beta2 = 0.99, epsilon = 1e-8, timestep = nn.step;
+  const beta1 = 0.75, beta2 = 0.99, epsilon = 1e-8, timestep = nn.step;
   for (let i=0; i<parameter.length; i++) {
     momentum[i] = beta1 * momentum[i] + (1 - beta1) * gradient[i];
     velocity[i] = beta2 * velocity[i] + (1 - beta2) * gradient[i] * gradient[i];
@@ -1041,7 +1042,7 @@ function updateHUD() {
   });
 
   // Rocket cooldown
-  rcdFill.style.width=((1-pl.rcd/100)*100)+'%';
+  rcdFill.style.width=((1-pl.rcd/RKT_COOLDOWN)*100)+'%';
 }
 
 // ══════════════════════════════════════════════
