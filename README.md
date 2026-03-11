@@ -5,7 +5,7 @@
 A browser game and AI demo:
 
 - Doom-style 2.5D raycast arena
-- Player rocket launcher vs enemy fireballs
+- Two player weapons (Repeater, Gauss rifle) vs enemy fireballs
 - Enemy controlled by a small neural network trained live in-game with backpropagation
 - HUD with health, training loss plot, learning phase progress, and active outputs
 
@@ -19,6 +19,7 @@ A browser game and AI demo:
 | `graphics.js` | Raycaster, sprite renderer, game state, HUD logic |
 | `gameloop.js` | Player input, projectiles, enemy step, main loop |
 | `tro/` | Enemy sprite sheet (PNG frames) |
+| `wea/` | First-person weapon sprites (PNG frames) |
 
 ## Run
 
@@ -38,7 +39,9 @@ Then visit `http://localhost:8080/neural-doom.html`.
 - `WASD`: Move
 - `Arrow Left` / `Arrow Right`: Turn
 - `Arrow Up` / `Arrow Down`: Forward / backward (alternative, run when pressed simulaneously with W/S)
-- `Space`: Fire rocket launcher
+- `Space`: Fire
+- `1`: Repeater
+- `2`: Gauss rifle
 
 ## How The AI Works
 
@@ -61,7 +64,8 @@ Gameplay behaviour can also be tuned in `gameloop.js`:
 
 - `PHASES` labels and thresholds
 - Enemy movement/fire cooldown values in `stepEnemy()`
-- Projectile values in `spawnRocket()`, `spawnFireball()`, and `updateProjectiles()`
+- Weapon constants (scale, shift, timing, damage, cooldown) near the top of `graphics.js`
+- Projectile values in `spawnWeaponProjectile()`, `spawnFireball()`, and `updateProjectiles()`
 
 ## Game over and restart
 
@@ -70,6 +74,8 @@ When the player HP drops to zero a `GAME OVER` banner appears. The `RESTART` but
 ## Credits
 
 Enemy sprites by **Nue** — [Nue's Trash Textures and Sprites](https://www.doomworld.com/forum/topic/154344-nues-trash-textures-and-sprites/?tab=comments#comment-2951428) (Doomworld forums).
+
+Weapon sprites — *Doom 2016 Weapon Sprites v2.0* by **Neccronixis** — [ZDoom forums](https://forum.zdoom.org/viewtopic.php?t=51919).
 
 ## Notes
 

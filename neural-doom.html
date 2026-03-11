@@ -137,7 +137,19 @@ hr.dv { border: none; border-top: 1px solid #cc1a1a1a; }
   border: 18px solid rgba(255,40,0,0.55);
   box-shadow: inset 0 0 40px rgba(255,0,0,0.35);
 }
-/* Rocket cooldown indicator */
+/* Weapon selector */
+.wep-btn {
+  color: #cc1a1a33;
+  font-size: 11px;
+  padding: 1px 5px;
+  border: 1px solid #cc1a1a22;
+  border-radius: 2px;
+  transition: all 0.1s;
+  letter-spacing: 0.5px;
+}
+.wep-btn.active { color: #88ccff; border-color: #88ccff77; background: rgba(100,180,255,0.08); box-shadow: 0 0 5px #88ccff33; }
+#wep-sel { display: flex; gap: 4px; margin-top: 5px; }
+/* Weapon cooldown indicator */
 #rcd-bar {
   position: absolute;
   bottom: 8px; left: 50%;
@@ -246,7 +258,11 @@ hr.dv { border: none; border-top: 1px solid #cc1a1a1a; }
     <div class="nn-arch" id="nn-arch-box"></div>
     <div class="ctrl">
       <b>WASD</b> MOVE &nbsp; <b>← →</b> TURN<br>
-      <b>SPACE</b> FIRE ROCKET LAUNCHER
+      <b>SPACE</b> FIRE &nbsp; <b>1/2</b> WEAPON
+      <div id="wep-sel">
+        <span id="wep1" class="wep-btn active">1: REPEATER</span>
+        <span id="wep2" class="wep-btn">2: GAUSS</span>
+      </div>
     </div>
   </div>
 </div>

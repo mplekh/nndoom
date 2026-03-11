@@ -33,6 +33,44 @@ for (const n of TRO_NAMES) {
   TRO_SPRITES[n] = img;
 }
 
+// ══════════════════════════════════════════════
+// WEAPON SPRITES
+// ══════════════════════════════════════════════
+const WEP_SPRITES = {};
+for (let i = 1; i <= 4; i++) {
+  const img = new Image(); img.src = `wea/Repeater/${i}.png`;
+  WEP_SPRITES[`rep${i}`] = img;
+}
+const _gauIdle = new Image(); _gauIdle.src = 'wea/Gauss/Idle.png';
+WEP_SPRITES['gau0'] = _gauIdle;
+for (let i = 1; i <= 11; i++) {
+  const img = new Image(); img.src = `wea/Gauss/${i}.png`;
+  WEP_SPRITES[`gau${i}`] = img;
+}
+
+// ── Weapon display & timing constants ─────────────────────────────────────
+//   WEP_SCALE:      sprite height as fraction of canvas height
+//   WEP_XSHIFT:     pixels to shift right of center (tip → crosshair)
+//   WEP_FRAME_MS:   ms per animation frame
+//   WEP_MAX_FRAMES: total animation frames (after idle frame 0)
+//   WEP_FIRE_FRAME: anim frame index that spawns the projectile
+//   WEP_PROJ_FWD:   projectile spawn — world units forward from player
+//   WEP_PROJ_SIDE:  projectile spawn — world units right (+) / left (-)
+//   WEP_PROJ_VERT:  projectile screen offset — px below crosshair at dist=1, fades with distance
+//   WEP_DAMAGE:     damage per projectile hit
+//   *_COOLDOWN:     frames before player can fire again
+const WEP_SCALE      = { 1: 0.38, 2: 0.42 };
+const WEP_XSHIFT     = { 1: 140,  2: 30   };
+const WEP_FRAME_MS   = { 1: 75,   2: 60   };
+const WEP_MAX_FRAMES = { 1: 3,    2: 11   };
+const WEP_FIRE_FRAME = { 1: 2,    2: 9    };
+const WEP_PROJ_FWD   = { 1: 0.5,  2: 0.3  };
+const WEP_PROJ_SIDE  = { 1: 0.0,  2: 0.0  };
+const WEP_PROJ_VERT  = { 1: 50,   2: 60   };
+const WEP_DAMAGE     = { 1: 4,    2: 60   };
+const REP_COOLDOWN   = 22;
+const GAU_COOLDOWN   = 55;
+
 // Returns the sprite filename for (frameLetter, dir 0-7)
 // dir 0=front, 4=back, 1-3=right side, 5-7=left side (mirrored)
 function tooSprName(frame, dir) {
@@ -148,8 +186,9 @@ const setpx = (x, y, r, g, b) => {
 // ══════════════════════════════════════════════
 // GAME STATE
 // ══════════════════════════════════════════════
-const pl = { x:18, y:28, a:-2, hp:100, maxHp:100, rcd:0, invincible:0 };
-let en = { x:13.5, y:13.5, a:Math.PI, hp:10, maxHp:20, fcd:0, dead:false, spr_seq:0, spr_seq_time:0, respT:0, flashT:0,
+const pl = { x:18, y:28, a:-2, hp:100, maxHp:100, rcd:0, invincible:0,
+             weapon:1, wepFrame:0, wepFrameTime:0, wepFiring:false, maxRcd:22 };
+let en = { x:13.5, y:13.5, a:Math.PI, hp:60, maxHp:100, fcd:0, dead:false, spr_seq:0, spr_seq_time:0, respT:0, flashT:0,
            walkFrame:0, walkFrameTime:0, atkFrame:0, atkFrameTime:0, isAttacking:false, walkDir:0, gibDeath:false };
 const enemies = [en];
 const keys = {};
@@ -179,13 +218,27 @@ const projs = [];
 const exps  = [];
 let kills = 0;
 
-const RKT_COOLDOWN = 60;
-function spawnRocket() {
-  projs.push({
-    x: pl.x+Math.cos(pl.a)*0.55, y: pl.y+Math.sin(pl.a)*0.55,
-    a: pl.a, spd: 0.1, type:'rocket', alive:true, life:0, maxLife:130
-  });
-  pl.rcd = RKT_COOLDOWN;
+function spawnWeaponProjectile() {
+  const fwd  = WEP_PROJ_FWD[pl.weapon];
+  const side = WEP_PROJ_SIDE[pl.weapon];
+  const ox = pl.x + Math.cos(pl.a)*fwd - Math.sin(pl.a)*side;
+  const oy = pl.y + Math.sin(pl.a)*fwd + Math.cos(pl.a)*side;
+  const vert = WEP_PROJ_VERT[pl.weapon];
+  if (pl.weapon === 1) {
+    for (let i = -1; i <= 1; i++) {
+      const a = pl.a + i * 0.055 + (Math.random()-0.5)*0.03;
+      projs.push({ x: ox, y: oy, a, spd: 0.22, type:'bullet', alive:true, life:0, maxLife:55, vert });
+    }
+  } else {
+    projs.push({ x: ox, y: oy, a: pl.a, spd: 0.22, type:'gauss', alive:true, life:0, maxLife:110, vert });
+  }
+}
+
+function fireWeapon() {
+  if (pl.wepFiring) return;
+  const cd = pl.weapon === 1 ? REP_COOLDOWN : GAU_COOLDOWN;
+  pl.rcd = cd; pl.maxRcd = cd;
+  pl.wepFiring = true; pl.wepFrame = 1; pl.wepFrameTime = performance.now();
 }
 
 // ══════════════════════════════════════════════
@@ -280,19 +333,29 @@ function drawProjectiles() {
     const { sx, dist } = s;
     if (sx<0||sx>=CW) continue;
     const sz=Math.max(3,(18/dist)|0);
+    const sy=(HALF_CH + (p.vert||0) / Math.max(0.3, dist)) | 0;
     ctx.save();
-    if (p.type==='rocket') {
+    if (p.type==='gauss') {
+      ctx.shadowColor='#00eeff'; ctx.shadowBlur=18;
+      ctx.fillStyle='#00eeff';
+      ctx.beginPath(); ctx.arc(sx,sy,sz,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#ffffff'; ctx.shadowBlur=0;
+      ctx.beginPath(); ctx.arc(sx,sy,sz*0.4,0,Math.PI*2); ctx.fill();
+    } else if (p.type==='bullet') {
+      ctx.fillStyle='#ffff88';
+      ctx.beginPath(); ctx.arc(sx,sy,Math.max(2,sz*0.45),0,Math.PI*2); ctx.fill();
+    } else if (p.type==='rocket') {
       ctx.shadowColor='#aaddff'; ctx.shadowBlur=14;
       ctx.fillStyle='#ffffff';
-      ctx.beginPath(); ctx.arc(sx,HALF_CH,sz,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx,sy,sz,0,Math.PI*2); ctx.fill();
       ctx.fillStyle='#88bbff'; ctx.shadowBlur=0;
-      ctx.beginPath(); ctx.arc(sx,HALF_CH,sz*0.5,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx,sy,sz*0.5,0,Math.PI*2); ctx.fill();
     } else {
       ctx.shadowColor='#ff3300'; ctx.shadowBlur=16;
       ctx.fillStyle='#ff6600';
-      ctx.beginPath(); ctx.arc(sx,HALF_CH,sz*1.4,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx,sy,sz*1.4,0,Math.PI*2); ctx.fill();
       ctx.fillStyle='#ffcc00'; ctx.shadowBlur=0;
-      ctx.beginPath(); ctx.arc(sx,HALF_CH,sz*0.55,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(sx,sy,sz*0.55,0,Math.PI*2); ctx.fill();
     }
     ctx.restore();
   }
@@ -308,17 +371,43 @@ function drawExplosions() {
     const { sx, dist } = s;
     const progress=1-ex.t/ex.maxT;
     const radius=Math.max(4,(CH*0.28*progress/(dist+0.3))|0);
-    const isHit=ex.type==='hit';
+    const isHit=ex.type==='hit', isGauss=ex.type==='gauss';
     ctx.save();
     ctx.globalAlpha=(ex.t/ex.maxT)*0.88;
-    ctx.shadowColor=isHit?'#ffaa00':'#ff4400'; ctx.shadowBlur=20;
-    ctx.strokeStyle=isHit?'#ffaa00':'#ff5500';
-    ctx.fillStyle  =isHit?'rgba(255,160,0,0.2)':'rgba(255,80,0,0.2)';
+    ctx.shadowColor=isHit?'#ffaa00':isGauss?'#00eeff':'#ff4400'; ctx.shadowBlur=20;
+    ctx.strokeStyle=isHit?'#ffaa00':isGauss?'#00ddff':'#ff5500';
+    ctx.fillStyle  =isHit?'rgba(255,160,0,0.2)':isGauss?'rgba(0,220,255,0.2)':'rgba(255,80,0,0.2)';
     ctx.lineWidth=2.5;
     ctx.beginPath(); ctx.arc(sx,HALF_CH,radius,0,Math.PI*2);
     ctx.stroke(); ctx.fill();
     ctx.restore();
   }
+}
+
+// ══════════════════════════════════════════════
+// WEAPON VIEW
+// ══════════════════════════════════════════════
+function updateWeapon() {
+  if (!pl.wepFiring) return;
+  const now = performance.now();
+  if (now - pl.wepFrameTime < WEP_FRAME_MS[pl.weapon]) return;
+  pl.wepFrameTime = now;
+  pl.wepFrame++;
+  if (pl.wepFrame === WEP_FIRE_FRAME[pl.weapon]) spawnWeaponProjectile();
+  if (pl.wepFrame > WEP_MAX_FRAMES[pl.weapon]) { pl.wepFrame = 0; pl.wepFiring = false; }
+}
+
+function drawWeapon() {
+  let sprite;
+  if (pl.weapon === 1) {
+    sprite = WEP_SPRITES[pl.wepFrame === 0 ? 'rep1' : `rep${pl.wepFrame + 1}`];
+  } else {
+    sprite = pl.wepFrame === 0 ? WEP_SPRITES['gau0'] : WEP_SPRITES[`gau${pl.wepFrame}`];
+  }
+  if (!sprite || !sprite.complete || !sprite.naturalWidth) return;
+  const sh = (CH * WEP_SCALE[pl.weapon]) | 0;
+  const sw = (sprite.width * sh / sprite.height) | 0;
+  ctx.drawImage(sprite, ((CW - sw) / 2 + WEP_XSHIFT[pl.weapon]) | 0, CH - sh, sw, sh);
 }
 
 // ══════════════════════════════════════════════
@@ -335,7 +424,7 @@ function drawMinimap() {
   }
   for (const p of projs) {
     if (!p.alive) continue;
-    ctx.fillStyle=p.type==='rocket'?'#88ccff':'#ff8800';
+    ctx.fillStyle=p.type==='gauss'?'#44eeff':p.type==='bullet'?'#ffff66':'#ff8800';
     ctx.fillRect((ox+p.x*S-1)|0,(oy+p.y*S-1)|0,2,2);
   }
   ctx.fillStyle='#44ff66';
@@ -369,7 +458,8 @@ function resetGameState() {
   gameOverActive = false;
   gameOverBanner.classList.remove('visible');
   pl.x = 18; pl.y = 28; pl.a = -2; pl.hp = pl.maxHp; pl.rcd = 0; pl.invincible = 0;
-  en = { x:13.5, y:13.5, a:Math.PI, hp:10, maxHp:20, fcd:0, dead:false, spr_seq:0, spr_seq_time:0, respT:0, flashT:0,
+  pl.weapon = 1; pl.wepFrame = 0; pl.wepFiring = false; pl.maxRcd = REP_COOLDOWN;
+  en = { x:13.5, y:13.5, a:Math.PI, hp:60, maxHp:100, fcd:0, dead:false, spr_seq:0, spr_seq_time:0, respT:0, flashT:0,
          walkFrame:0, walkFrameTime:0, atkFrame:0, atkFrameTime:0, isAttacking:false, walkDir:0, gibDeath:false };
   enemies.length = 0;
   enemies.push(en);
@@ -492,6 +582,8 @@ function updateHUD() {
     else       b.className='out-btn'+(on?' on':'');
   });
 
-  // Rocket cooldown
-  rcdFill.style.width=((1-pl.rcd/RKT_COOLDOWN)*100)+'%';
+  // Weapon cooldown
+  rcdFill.style.width=((1-pl.rcd/pl.maxRcd)*100)+'%';
+  document.getElementById('wep1').className='wep-btn'+(pl.weapon===1?' active':'');
+  document.getElementById('wep2').className='wep-btn'+(pl.weapon===2?' active':'');
 }

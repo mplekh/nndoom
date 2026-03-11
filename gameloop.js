@@ -20,7 +20,9 @@ function updatePlayer() {
   if (keys['KeyD'])      tryMove(pl.x+sr*MS, pl.y+sp*MS);
   if (keys['ArrowLeft']) pl.a-=TS;
   if (keys['ArrowRight'])pl.a+=TS;
-  if (keys['Space'] && pl.rcd<=0) spawnRocket();
+  if (keys['Digit1'] && !pl.wepFiring) pl.weapon = 1;
+  if (keys['Digit2'] && !pl.wepFiring) pl.weapon = 2;
+  if (keys['Space'] && pl.rcd<=0) fireWeapon();
   if (pl.rcd>0) pl.rcd--;
   if (pl.invincible>0) pl.invincible--;
 }
@@ -38,19 +40,20 @@ function updateProjectiles() {
 
     if (mapAt(p.x, p.y)) {
       p.alive=false;
-      exps.push({x:p.x, y:p.y, t:10, maxT:10, type:p.type});
+      if (p.type !== 'bullet') exps.push({x:p.x, y:p.y, t:10, maxT:10, type:p.type});
       continue;
     }
 
-    if (p.type==='rocket' && !en.dead) {
+    if ((p.type==='bullet'||p.type==='gauss'||p.type==='rocket') && !en.dead) {
       if (Math.hypot(p.x-en.x, p.y-en.y) < 0.65) {
         p.alive=false;
-        en.hp = Math.max(0, en.hp-5);
+        const dmg = p.type==='bullet' ? WEP_DAMAGE[1] : p.type==='gauss' ? WEP_DAMAGE[2] : 5;
+        en.hp = Math.max(0, en.hp-dmg);
         en.flashT = 9;
         exps.push({x:p.x, y:p.y, t:16, maxT:16, type:'hit'});
         if (en.hp<=0) { en.dead=true; en.respT=210; kills++; en.spr_seq=0;
           en.spr_seq_time=performance.now()-TRO_DEATH_FRAME_MS;
-          en.gibDeath=(p.type==='rocket'); }
+          en.gibDeath=(p.type==='gauss'||p.type==='rocket'); }
       }
     }
 
@@ -158,6 +161,7 @@ function spawnFireball() {
 // ══════════════════════════════════════════════
 function frame() {
   updatePlayer();
+  updateWeapon();
   updateProjectiles();
   stepEnemy();
 
@@ -165,6 +169,7 @@ function frame() {
   drawEnemy();
   drawProjectiles();
   drawExplosions();
+  drawWeapon();
   drawMinimap();
 
   // Player invincibility flicker overlay
