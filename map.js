@@ -44,3 +44,56 @@ const mapAt = (x, y) => {
   if (mx < 0 || mx >= MW || my < 0 || my >= MH) return 1;
   return MAP[my * MW + mx];
 };
+
+// ── BFS pathfinder ──────────────────────────
+// Returns direction vector {dx, dy} toward target, navigating around walls.
+// Falls back to direct line if already in LOS or on same cell.
+const _bfsDist = new Int16Array(MW * MH);
+const _bfsQueue = new Int16Array(MW * MH * 2);  // flat [x,y,x,y,...]
+
+function pathDir(fromX, fromY, toX, toY) {
+  const fx = fromX | 0, fy = fromY | 0;
+  const tx = toX | 0, ty = toY | 0;
+
+  // Same cell — go direct
+  if (fx === tx && fy === ty) return { dx: toX - fromX, dy: toY - fromY };
+
+  // BFS from target to source (reverse BFS so we can read the direction at source)
+  _bfsDist.fill(-1);
+  let head = 0, tail = 0;
+  _bfsQueue[tail++] = tx; _bfsQueue[tail++] = ty;
+  _bfsDist[ty * MW + tx] = 0;
+
+  while (head < tail) {
+    const cx = _bfsQueue[head++], cy = _bfsQueue[head++];
+    const cd = _bfsDist[cy * MW + cx];
+    if (cx === fx && cy === fy) break;
+
+    for (let d = 0; d < 4; d++) {
+      const nx = cx + (d === 0 ? 1 : d === 1 ? -1 : 0);
+      const ny = cy + (d === 2 ? 1 : d === 3 ? -1 : 0);
+      if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) continue;
+      if (MAP[ny * MW + nx]) continue;
+      if (_bfsDist[ny * MW + nx] >= 0) continue;
+      _bfsDist[ny * MW + nx] = cd + 1;
+      _bfsQueue[tail++] = nx; _bfsQueue[tail++] = ny;
+    }
+  }
+
+  // If no path found, go direct
+  if (_bfsDist[fy * MW + fx] < 0) return { dx: toX - fromX, dy: toY - fromY };
+
+  // Find neighbor of source with lowest distance to target
+  let bestD = _bfsDist[fy * MW + fx], bestX = fx, bestY = fy;
+  for (let d = 0; d < 4; d++) {
+    const nx = fx + (d === 0 ? 1 : d === 1 ? -1 : 0);
+    const ny = fy + (d === 2 ? 1 : d === 3 ? -1 : 0);
+    if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) continue;
+    if (MAP[ny * MW + nx]) continue;
+    const nd = _bfsDist[ny * MW + nx];
+    if (nd >= 0 && nd < bestD) { bestD = nd; bestX = nx; bestY = ny; }
+  }
+
+  // Direction: aim at center of best neighbor cell
+  return { dx: (bestX + 0.5) - fromX, dy: (bestY + 0.5) - fromY };
+}

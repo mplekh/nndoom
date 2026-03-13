@@ -586,4 +586,7 @@ function updateHUD() {
   rcdFill.style.width=((1-pl.rcd/pl.maxRcd)*100)+'%';
   document.getElementById('wep1').className='wep-btn'+(pl.weapon===1?' active':'');
   document.getElementById('wep2').className='wep-btn'+(pl.weapon===2?' active':'');
+
+  // SNN HUD
+  if (typeof updateSNNHUD === 'function') updateSNNHUD();
 }

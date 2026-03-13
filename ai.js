@@ -161,11 +161,20 @@ function getInput() {
 function getIdeal() {
   const dx=pl.x-en.x, dy=pl.y-en.y;
   const dist=Math.hypot(dx,dy);
-  let da=Math.atan2(dy,dx)-en.a;
-  while(da> Math.PI) da-=2*Math.PI;
-  while(da<-Math.PI) da+=2*Math.PI;
+  const los=hasLOS(en.x,en.y,pl.x,pl.y);
   const targetOutputs=new Float32Array(OUTPUT_SIZE);
   const nr=nearestRocket();
+
+  // Use pathfinding when no LOS to navigate around walls
+  let navDx = dx, navDy = dy;
+  if (!los) {
+    const nav = pathDir(en.x, en.y, pl.x, pl.y);
+    navDx = nav.dx; navDy = nav.dy;
+  }
+
+  let da=Math.atan2(navDy,navDx)-en.a;
+  while(da> Math.PI) da-=2*Math.PI;
+  while(da<-Math.PI) da+=2*Math.PI;
 
   if (nr && nr.dist<10 && isApproaching(nr)) {
     // Dodge incoming rocket
@@ -185,8 +194,8 @@ function getIdeal() {
       // Alternate strafe direction based on steps
       targetOutputs[(steps>>5)&1 ? 4 : 5] = 0.5;
     }
-    // Fire on LOS
-    if (hasLOS(en.x,en.y,pl.x,pl.y) && dist<11 && Math.abs(da)<0.5) targetOutputs[6]=1;
+    // Fire on LOS only
+    if (los && dist<11 && Math.abs(da)<0.5) targetOutputs[6]=1;
   }
   return targetOutputs;
 }

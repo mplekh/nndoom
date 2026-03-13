@@ -149,6 +149,13 @@ hr.dv { border: none; border-top: 1px solid #cc1a1a1a; }
 }
 .wep-btn.active { color: #88ccff; border-color: #88ccff77; background: rgba(100,180,255,0.08); box-shadow: 0 0 5px #88ccff33; }
 #wep-sel { display: flex; gap: 4px; margin-top: 5px; }
+/* SNN HUD */
+.snn-section { border-top: 1px solid #cc1a1a18; padding-top: 6px; }
+.snn-stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.snn-val { font-size: 13px; color: #44bbff; text-shadow: 0 0 8px #44bbff55; letter-spacing: 1px; }
+.snn-mode-val { font-size: 13px; color: #44ff88; text-shadow: 0 0 8px #44ff8855; letter-spacing: 2px; }
+#snn-raster { width: 100%; height: 52px; background: #040202; border: 1px solid #44bbff18; display: block; }
+#snn-vis { width: 100%; height: auto; background: #000; border: 1px solid #44bbff18; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
 /* Weapon cooldown indicator */
 #rcd-bar {
   position: absolute;
@@ -222,7 +229,7 @@ hr.dv { border: none; border-top: 1px solid #cc1a1a1a; }
   <div id="panel">
     <div>
       <div class="title">NEURAL DOOM</div>
-      <div class="sub">ENEMY AI · LIVE BACKPROP</div>
+      <div class="sub">MICROGPT TRANSFORMER AI</div>
     </div>
     <hr class="dv">
     <div>
@@ -256,9 +263,24 @@ hr.dv { border: none; border-top: 1px solid #cc1a1a1a; }
       <div class="out-grid" id="out-grid"></div>
     </div>
     <div class="nn-arch" id="nn-arch-box"></div>
+    <div class="snn-section">
+      <div class="lbl">VISUAL INPUT 16×12</div>
+      <canvas id="snn-vis" width="16" height="12"></canvas>
+      <div class="lbl" style="margin-top:6px">GPT CONTROLLER</div>
+      <div class="snn-stat-row">
+        <div><div class="lbl">MODE</div><div class="snn-mode-val" id="snn-mode">OBSERVE</div></div>
+        <div><div class="lbl">ATTN SPAN</div><div class="snn-val" id="snn-spikes">0</div></div>
+      </div>
+      <div class="snn-stat-row" style="margin-top:3px">
+        <div><div class="lbl">POL LOSS</div><div class="snn-val" id="snn-loss">-.----</div></div>
+        <div><div class="lbl">REWARD</div><div class="snn-val" id="snn-reward">0.0</div></div>
+      </div>
+      <canvas id="snn-raster" width="218" height="52"></canvas>
+    </div>
     <div class="ctrl">
       <b>WASD</b> MOVE &nbsp; <b>← →</b> TURN<br>
-      <b>SPACE</b> FIRE &nbsp; <b>1/2</b> WEAPON
+      <b>SPACE</b> FIRE &nbsp; <b>1/2</b> WEAPON<br>
+      <b>3</b> GPT MODE &nbsp; <b>4</b> ATTN
       <div id="wep-sel">
         <span id="wep1" class="wep-btn active">1: REPEATER</span>
         <span id="wep2" class="wep-btn">2: GAUSS</span>
@@ -270,10 +292,12 @@ hr.dv { border: none; border-top: 1px solid #cc1a1a1a; }
   <span>GAME OVER</span>
   <button id="banner-restart" type="button">RESTART</button>
 </div>
-<script src="map.js"></script>
-<script src="ai.js"></script>
-<script src="graphics.js"></script>
-<script src="gameloop.js"></script>
+<script src="map.js?v=3"></script>
+<script src="microgpt-tape.js?v=6"></script>
+<script src="ai.js?v=2"></script>
+<script src="graphics.js?v=2"></script>
+<script src="microgpt-ctrl.js?v=6"></script>
+<script src="gameloop.js?v=2"></script>
 
 <script>
 

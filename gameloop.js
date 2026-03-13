@@ -3,8 +3,9 @@
 // ══════════════════════════════════════════════
 // PLAYER UPDATE
 // ══════════════════════════════════════════════
-function updatePlayer() {
+function updatePlayer(effectiveKeys) {
   if (gameOverActive) return;
+  const k = effectiveKeys || keys;
   const MS=0.06, TS=0.038;
   const ca=Math.cos(pl.a), sa=Math.sin(pl.a);
   const sr=Math.cos(pl.a+Math.PI/2), sp=Math.sin(pl.a+Math.PI/2);
@@ -12,17 +13,17 @@ function updatePlayer() {
     if (!collidesAt(nx,pl.y)) pl.x=nx;
     if (!collidesAt(pl.x,ny)) pl.y=ny;
   };
-  if (keys['KeyW'])      tryMove(pl.x+ca*MS, pl.y+sa*MS);
-  if (keys['ArrowUp'])   tryMove(pl.x+ca*MS, pl.y+sa*MS);
-  if (keys['KeyS'])      tryMove(pl.x-ca*MS, pl.y-sa*MS);
-  if (keys['ArrowDown']) tryMove(pl.x-ca*MS, pl.y-sa*MS);
-  if (keys['KeyA'])      tryMove(pl.x-sr*MS, pl.y-sp*MS);
-  if (keys['KeyD'])      tryMove(pl.x+sr*MS, pl.y+sp*MS);
-  if (keys['ArrowLeft']) pl.a-=TS;
-  if (keys['ArrowRight'])pl.a+=TS;
-  if (keys['Digit1'] && !pl.wepFiring) pl.weapon = 1;
-  if (keys['Digit2'] && !pl.wepFiring) pl.weapon = 2;
-  if (keys['Space'] && pl.rcd<=0) fireWeapon();
+  if (k['KeyW'])      tryMove(pl.x+ca*MS, pl.y+sa*MS);
+  if (k['ArrowUp'])   tryMove(pl.x+ca*MS, pl.y+sa*MS);
+  if (k['KeyS'])      tryMove(pl.x-ca*MS, pl.y-sa*MS);
+  if (k['ArrowDown']) tryMove(pl.x-ca*MS, pl.y-sa*MS);
+  if (k['KeyA'])      tryMove(pl.x-sr*MS, pl.y-sp*MS);
+  if (k['KeyD'])      tryMove(pl.x+sr*MS, pl.y+sp*MS);
+  if (k['ArrowLeft']) pl.a-=TS;
+  if (k['ArrowRight'])pl.a+=TS;
+  if (k['Digit1'] && !pl.wepFiring) pl.weapon = 1;
+  if (k['Digit2'] && !pl.wepFiring) pl.weapon = 2;
+  if (k['Space'] && pl.rcd<=0) fireWeapon();
   if (pl.rcd>0) pl.rcd--;
   if (pl.invincible>0) pl.invincible--;
 }
@@ -159,8 +160,16 @@ function spawnFireball() {
 // ══════════════════════════════════════════════
 // MAIN LOOP
 // ══════════════════════════════════════════════
+let _snnEffKeys = null;
+// Persistent buffer for SNN frame capture (avoids getImageData on potentially tainted canvas)
+const _snnCapture = document.createElement('canvas');
+_snnCapture.width = CW; _snnCapture.height = CH;
+const _snnCaptureCtx = _snnCapture.getContext('2d');
+
 function frame() {
-  updatePlayer();
+  // Use SNN keys computed from previous frame's full render
+  const effectiveKeys = _snnEffKeys || keys;
+  updatePlayer(effectiveKeys);
   updateWeapon();
   updateProjectiles();
   stepEnemy();
@@ -175,6 +184,12 @@ function frame() {
   // Player invincibility flicker overlay
   if (pl.invincible>0 && (pl.invincible%8)<4) {
     drawRedFlicker();
+  }
+
+  // SNN/GPT reads complete rendered frame (enemies, projectiles, weapon all visible)
+  if (typeof snnCtrlStep === 'function') {
+    const fullPx = ctx.getImageData(0, 0, CW, CH).data;
+    _snnEffKeys = snnCtrlStep(fullPx, pl, en, enemies, projs, keys);
   }
 
   drawLoss();
